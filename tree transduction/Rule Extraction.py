@@ -23,7 +23,7 @@ def alignTrees(source,dest,matchedWords):
         destPos=dest.leaf_treeposition(pair[1])
         a = len(sourcePos) - 1
         b = len(destPos) - 1
-        while a > 0 or b > 0:
+        while a >= 0 or b >= 0:
             if source[sourcePos[0:a]] == dest[destPos[0:b]]:
                 a -= 1
                 b -= 1
@@ -33,7 +33,7 @@ def alignTrees(source,dest,matchedWords):
                 if destPos[0:b] in parentCountD:
                     parentCountD[destPos[0:b]]+=1
                     x=b-1
-                    while x>0:
+                    while x>=0:
                         if destPos[0:x] in parentCountD:
                             parentCountD[destPos[0:x]] += 1
                             x-=1
@@ -47,7 +47,7 @@ def alignTrees(source,dest,matchedWords):
                 if sourcePos[0:a] in parentCountS:
                     parentCountS[sourcePos[0:a]] += 1
                     x = a - 1
-                    while x > 0:
+                    while x >= 0:
                         if sourcePos[0:x] in parentCountS:
                             parentCountS[sourcePos[0:x]] += 1
                             x -= 1
@@ -64,7 +64,7 @@ def alignTrees(source,dest,matchedWords):
         destPos=pair[1]
         a = len(pair[0])-1
         b = len(pair[1])-1
-        while a > 0 and b > 0:
+        while a >= 0 and b >= 0:
             if source[sourcePos[0:a]].label() == dest[destPos[0:b]].label() \
                     and ((len(dest[destPos[0:b]])==1 and len(source[sourcePos[0:a]])==1)
                          or (parentCountD[destPos[0:b]]>=2 and parentCountS[sourcePos[0:a]]>=2) ):
@@ -88,17 +88,17 @@ def extractRules(source,dest,completeMatch,partialMatch,rulesRhs,rulesLhs):
             continue
         sourceTupleLen=len(pair[0])
         destStr=str(dest[pair[1]])
-        if pair[1]==(0,):
+        if pair[1]==():
             destStr=str(dest).replace('\n','=')
         for matches in completeMatch:
             if len(matches[0])>=sourceTupleLen and matches[0][0:sourceTupleLen]==pair[0]:
-                newString='['+str((0,)+matches[0][sourceTupleLen:])+']'
+                newString='['+str(matches[0][sourceTupleLen:])+']'
                 destStr=destStr.replace(str(dest[matches[1]]),newString)
                 #dest[matches[1]].set_label(str((0,)+matches[0][sourceTupleLen:]))
 
         rulesRhs.append(destStr)
         if pair[0]==(0,):
-            rulesLhs.append(str(source).replace('\n',''))
+            rulesLhs.append(str(source).replace('\n','='))
         else:
             rulesLhs.append(str(source[pair[0]]))
 
@@ -153,7 +153,7 @@ simple=pre.readFile("simple.txt")
 rulesRhs,rulesLhs=train(orginal.splitlines(),simple.splitlines(),stanfordParser)
 openedFile=io.open("rulesLhs.txt",'w')
 for element in rulesLhs:
-    openedFile.writelines(str(element).replace('\n','')+'\n')
+    openedFile.writelines(str(element).replace('\n','=')+'\n')
 openedFile.close()
 openedFile=io.open("rulesRhs.txt",'w')
 for element in rulesRhs:
