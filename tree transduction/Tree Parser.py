@@ -46,7 +46,7 @@ def matchSentence(sentence,sTree):
     return rules
 
 parser=intializeParser()
-sentence="الكرة يلعب بها عمر"
+sentence="عمر الذي يلعب الكرة رجل مهذب"
 sourceTree=parser.parse(sentence)[0]
 outputArray=matchSentence(str(sourceTree),sourceTree)
 if type(outputArray) is str:

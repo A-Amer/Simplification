@@ -83,7 +83,9 @@ def alignTrees(source,dest,matchedWords):
 
 
 def extractRules(source,dest,completeMatch,partialMatch,rulesRhs,rulesLhs):
+
     for pair in partialMatch:
+        sourceStr = str(source[pair[0]])
         if pair in completeMatch:
             continue
         sourceTupleLen=len(pair[0])
@@ -91,6 +93,7 @@ def extractRules(source,dest,completeMatch,partialMatch,rulesRhs,rulesLhs):
         if pair[1]==():
             destStr=str(dest).replace('\n','=')
         for matches in completeMatch:
+            sourceStr = sourceStr.replace(str(source[matches[0]]), '(' + source[matches[0]].label() + '.*?' + ')')
             if len(matches[0])>=sourceTupleLen and matches[0][0:sourceTupleLen]==pair[0]:
                 newString='['+str(matches[0][sourceTupleLen:])+']'
                 destStr=destStr.replace(str(dest[matches[1]]),newString)
@@ -98,23 +101,25 @@ def extractRules(source,dest,completeMatch,partialMatch,rulesRhs,rulesLhs):
 
         rulesRhs.append(destStr)
         if pair[0]==(0,):
-            rulesLhs.append(str(source).replace('\n','='))
+            rulesLhs.append(str(sourceStr).replace('\n','='))
         else:
-            rulesLhs.append(str(source[pair[0]]))
+            rulesLhs.append(sourceStr)
 
 
 def extractSplit(source,dest,partialMatches,rulesRhs,rulesLhs):
     rhsList=[]
     i=0
+    sourceStr=str(source)
     for parital in partialMatches:
         destStr=str(dest[i])
         for matches in parital:
             destStr=destStr.replace(str(dest[i][matches[1]]),'['+str(matches[0])+']')
             #dest[i][matches[1]].set_label(matches[0])
+            sourceStr=sourceStr.replace(str(source[matches[0]]),'('+source[matches[0]].label()+'.*?'+')')
 
         rhsList.append(destStr)
         i+=1
-    rulesLhs.append(source)
+    rulesLhs.append(sourceStr)
     rulesRhs.append(rhsList)
     #rules.append((source,rhsList))
 
