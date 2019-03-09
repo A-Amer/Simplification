@@ -1,12 +1,12 @@
 from torch import nn
 from  torch import optim
 from torch.nn.utils import clip_grad_norm_
-
 import torch
 import os
 import random
 import config
-
+import re
+import seq2seqModel as s2s
 import Vocab
 import glob
 
@@ -16,11 +16,11 @@ class seq2Seq:
 #try if validation does not increase stop for overfitting
 def train(vocabFile=False):
     if vocabFile==False:
-        Vocab.buildVocab(config.fullOrgTxtPath,config.orgVocabFilePath)
-        Vocab.buildVocab(config.fullSimpleTxtPath, config.simpleVocabFilePath)
+        Vocab.buildVocab(config.orgTrainingFilePath, config.orgVocabFilePath)
+        Vocab.buildVocab(config.simpleTrainingFilePath, config.simpleVocabFilePath)
     #simpleVocab=Vocab.Vocab(config.simpleVocabFilePath)
     orgVocab=Vocab.Vocab(config.orgVocabFilePath)
-    model=seq2Seq()
+    model=s2s.seq2seq(orgVocab.word2Id(Vocab.sentenceEnd),orgVocab.word2Id(Vocab.sentenceStart))
     lossFn=nn.NLLLoss()
     optimizer=optim.Adam(model.parameters())
     simpleFiles = glob.glob(config.simpleTrainingFilePath)
@@ -44,9 +44,9 @@ def train(vocabFile=False):
             random.shuffle(sentenceIndecies)
             for sentenceIndex in sentenceIndecies:
                 input=Vocab.sentenceToTensor(org[sentenceIndex]+Vocab.sentenceEnd,orgVocab)
-                target=Vocab.sentenceToTensor(simple[sentenceIndex]+Vocab.sentenceEnd,orgVocab)
+                target=Vocab.sentenceToTensor(Vocab.sentenceStart+simple[sentenceIndex]+Vocab.sentenceEnd,orgVocab)
                 optimizer.zero_grad()
-                output=model(input,len(simple[sentenceIndex]))
+                output=model(input,len(target))
                 loss=lossFn(output,target)
                 loss.backward()
                 clip_grad_norm_(model.paramters(),config.gradientMax)
@@ -99,28 +99,44 @@ def loadCheckpoint(model, optimizer, filename=config.checkpointPath):
         print("=> no checkpoint found at '{}'".format(filename))
 
     return model, optimizer, startEpoch
-def chunk(fromPath,ToPath):
+
+def chunk(fromPathOrg,fromPathSimple,ToPathOrg,ToPathSimple):
     i=0
-    srcFile=open(fromPath)
-    dstFile=open(ToPath+'/train_'+i+'.bin',mode='w')
+    srcFileOrg=open(fromPathOrg)
+    dstFileOrg=open(ToPathOrg+'/train_'+str(i)+'.src.txt',mode='w')
+    srcFileSimple=open(fromPathSimple)
+    dstFileSimple = open(ToPathSimple + '/train_' +str(i)+ '.dst.txt', mode='w')
     i+=1
-    line=srcFile.readline()
+    legalChars=r'[ ^\x00 -\x7Fé]+$'
     numOfExamples=0
-    while line!="":
-        dstFile.write(line)
+    while True:
+        lineOrg = srcFileOrg.readline().replace('-LCB-','{').replace('-RCB-','}').replace('-LRB-','(').replace('-RRB-',')').replace('-LSB-','[').replace('-RSB-',']').replace("â ''",'-')
+        lineSimple = srcFileSimple.readline().replace('-LCB-','{').replace('-RCB-','}').replace('-LRB-','(').replace('-RRB-',')').replace('-LSB-','[').replace('-RSB-',']').replace("â ''",'-')
+        if lineOrg=="":
+            break
+        if (not re.match(legalChars,lineOrg))  \
+                or lineOrg[0].isnumeric() or lineSimple[0].isnumeric() or\
+                not(( not lineSimple.endswith((".\n",";\n","!\n","?\n"))) or (lineOrg.endswith((".\n",";\n","!\n","?\n")))):
+            continue
+        dstFileOrg.write(lineOrg)
+        dstFileSimple.write(lineSimple)
         numOfExamples+=1
         if numOfExamples==1000:
-            dstFile.close()
-            dstFile = open(ToPath + '/train_' + i + '.bin', mode='w')
+            dstFileOrg.close()
+            dstFileSimple.close()
+            dstFileOrg = open(ToPathOrg+'/train_'+str(i)+'.src.txt',mode='w')
+            dstFileSimple = open(ToPathSimple + '/train_' + str(i) + '.dst.txt', mode='w')
             i+=1
             numOfExamples=0
-        line = srcFile.readline()
+    dstFileOrg.close()
+    dstFileSimple.close()
 
 
 
 
-vocab=torch.load("/home/amira/GP-imp/Abstractive Sum/data-simplification/wikilarge/wiki.full.aner.train.dst.vocab.tmp.t7")
-print("hello")
+#Vocab.buildVocab(config.orgTrainingFilePath,config.orgVocabFilePath)
+Vocab.buildVocab(config.simpleTrainingFilePath, config.simpleVocabFilePath)
+
 
 
 
