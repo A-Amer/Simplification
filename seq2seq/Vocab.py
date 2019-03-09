@@ -24,6 +24,7 @@ class Vocab(object):
 
         with open(vocabFile) as vocab:
             for w in vocab:
+                w=w.replace("\n","")
                 self.word2Id[w] = self.count
                 self.id2Word[self.count] = w
                 self.count += 1
@@ -44,18 +45,18 @@ class Vocab(object):
         return self.count
 
 def sentenceToIds(sentence,vocab):
-    return [vocab.word2Id[word] for word in sentence.split(' ')]
+    return [vocab.wordToId(word) for word in sentence.split(' ')]
 
 def sentenceToTensor(sentence,vocab):
-    indexes = Vocab.sentenceToIds(sentence,vocab)
-    indexes.append(vocab.word2Id(Vocab.SENTENCE_END))
+    indexes = sentenceToIds(sentence,vocab)
+    indexes.append(vocab.wordToId(sentenceEnd))
     return torch.tensor(indexes, dtype=torch.long).view(-1, 1)
 def batchToPaddedSeq(batch,vocab):
     sequences=[]
     for sentence in batch:
         sequences.append(sentenceToTensor(sentence,vocab))
 
-    return torch.nn.utils.rnn.pack_sequence(sequences,padding_value=vocab.word2Id(Vocab.PAD_TOKEN))
+    return torch.nn.utils.rnn.pack_sequence(sequences,padding_value=vocab.wordToId(padToken))
 
 def articleToId(articleTokens,vocab):
     oov=[]
@@ -63,7 +64,7 @@ def articleToId(articleTokens,vocab):
     oovId=0
     unk_id = vocab.word2id(unknownToken)
     for word in articleTokens:
-        id=vocab.word2Id(word)
+        id=vocab.wordToId(word)
         if id==unk_id:#if out of vocab word
             if word not in oov:
                 oov.append(word)
@@ -81,7 +82,7 @@ def abstractToId(abstractTokens,vocab,articleOov):
     oovId = 0
     unk_id = vocab.word2id(unknownToken)
     for word in abstractTokens:
-        id = vocab.word2Id(word)
+        id = vocab.wordToId(word)
         if id==unk_id:
             if word in articleOov:#Token is an OOV found in the original article
                 oovIndex = articleOov.index(word)

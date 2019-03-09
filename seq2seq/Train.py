@@ -18,19 +18,21 @@ def train(vocabFile=False):
     if vocabFile==False:
         Vocab.buildVocab(config.orgTrainingFilePath, config.orgVocabFilePath)
         Vocab.buildVocab(config.simpleTrainingFilePath, config.simpleVocabFilePath)
-    #simpleVocab=Vocab.Vocab(config.simpleVocabFilePath)
-    orgVocab=Vocab.Vocab(config.orgVocabFilePath)
-    model=s2s.seq2seq(orgVocab.word2Id(Vocab.sentenceEnd),orgVocab.word2Id(Vocab.sentenceStart))
+    simpleVocab=Vocab.Vocab(config.simpleVocabFilePath,maxSize=config.vocabSizeDec)
+    orgVocab=Vocab.Vocab(config.orgVocabFilePath,maxSize=config.vocabSizeEnc)
+    model=s2s.seq2seq(orgVocab.wordToId(Vocab.sentenceEnd),orgVocab.wordToId(Vocab.sentenceStart))
     lossFn=nn.NLLLoss()
     optimizer=optim.Adam(model.parameters())
     simpleFiles = glob.glob(config.simpleTrainingFilePath)
+    simpleFiles.sort()
     orgFiles=glob.glob(config.orgTrainingFilePath)
+    orgFiles.sort()
     model, optimizer, startEpoch=loadCheckpoint(model, optimizer)
     numOfFiles=len(orgFiles)
 
     for epoch in range(startEpoch,config.maxEpoch):
         model.train()
-        fileIndecies=range(numOfFiles)
+        fileIndecies=list(range(numOfFiles))
         random.shuffle(fileIndecies)
         for fileIndex in fileIndecies:
             with open(orgFiles[fileIndex]) as orgTxt:
@@ -40,29 +42,30 @@ def train(vocabFile=False):
                 simple=simpleTxt.read().splitlines()
             simpleTxt.close()
 
-            sentenceIndecies=range(len(org))
+            sentenceIndecies=list(range(len(org)))
             random.shuffle(sentenceIndecies)
             for sentenceIndex in sentenceIndecies:
-                input=Vocab.sentenceToTensor(org[sentenceIndex]+Vocab.sentenceEnd,orgVocab)
-                target=Vocab.sentenceToTensor(Vocab.sentenceStart+simple[sentenceIndex]+Vocab.sentenceEnd,orgVocab)
+                input=Vocab.sentenceToTensor(org[sentenceIndex],orgVocab)
+                target=Vocab.sentenceToTensor(Vocab.sentenceStart+' '+simple[sentenceIndex],simpleVocab)
                 optimizer.zero_grad()
                 output=model(input,len(target))
-                loss=lossFn(output,target)
+                loss=lossFn(output,target.squeeze(1))
                 loss.backward()
                 clip_grad_norm_(model.paramters(),config.gradientMax)
                 optimizer.step()
         states={'epoch': epoch + 1, 'stateDict': model.state_dict(),
              'optimizer': optimizer.state_dict(),  }
         torch.save(states, config.checkpointPath)
+        print("epoch number {} finished".format(epoch))
 
 
 def eval(model,simpleDataPath,orgDataPath):
-    # simpleVocab=Vocab.Vocab(config.simpleVocabFilePath)
+    simpleVocab = Vocab.Vocab(config.simpleVocabFilePath, maxSize=config.vocabSizeDec)
+    orgVocab = Vocab.Vocab(config.orgVocabFilePath, maxSize=config.vocabSizeEnc)
     model.eval()
-    orgVocab = Vocab.Vocab(config.orgVocabFilePath)
     lossFn = nn.NLLLoss()
-    simpleFiles = glob.glob(simpleDataPath)
-    orgFiles = glob.glob(orgDataPath)
+    simpleFiles = glob.glob(simpleDataPath).sort()
+    orgFiles = glob.glob(orgDataPath).sort()
     lossTotal=0
     numOfEx=0
     fileIndecies = range(len(orgFiles))
@@ -78,7 +81,7 @@ def eval(model,simpleDataPath,orgDataPath):
         numOfEx+=len(org)
         for sentenceIndex in sentenceIndecies:
             input = Vocab.sentenceToTensor(org[sentenceIndex] + Vocab.sentenceEnd, orgVocab)
-            target = Vocab.sentenceToTensor(simple[sentenceIndex] + Vocab.sentenceEnd, orgVocab)
+            target = Vocab.sentenceToTensor(simple[sentenceIndex] + Vocab.sentenceEnd, simpleVocab)
             output = model(input, len(simple[sentenceIndex]))
             loss += lossFn(output, target)
         print('File {} has avarage loss of {:.4f}'.format(fileIndex+1,loss/len(org)))
@@ -133,9 +136,7 @@ def chunk(fromPathOrg,fromPathSimple,ToPathOrg,ToPathSimple):
 
 
 
-
-#Vocab.buildVocab(config.orgTrainingFilePath,config.orgVocabFilePath)
-Vocab.buildVocab(config.simpleTrainingFilePath, config.simpleVocabFilePath)
+train(True)
 
 
 

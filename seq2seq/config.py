@@ -1,5 +1,5 @@
 #encoder parameters
-vocabSizeEnc = 1000
+vocabSizeEnc = 100000
 embDimEnc = 300
 hiddenDimEnc = 256
 nLayersEnc = 2
@@ -7,7 +7,7 @@ bidirectionalEnc = False
 dropoutEnc = 0.2
 
 #decoder parameters
-vocabSizeDec = 1000
+vocabSizeDec = 100000
 embDimDec = 300
 hiddenDimDec = 256
 nLayersDec = 2

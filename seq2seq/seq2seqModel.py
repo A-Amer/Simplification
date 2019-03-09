@@ -58,50 +58,45 @@ class decoderSimp(nn.Module):
 
         #input = input.unsqueeze(0)
         embedded = self.dropout(self.embedding(input))
+        embedded=embedded.unsqueeze(0)
         output, (hidden, cell) = self.rnn(embedded, (hidden, cell))
 
-        hiddenUpperLayer = torch.t(hidden.squeeze(1)[1])
+        hiddenUpperLayer = torch.t(hidden.squeeze(1)[1].unsqueeze(0))
         atten = torch.mm(encoderStates, hiddenUpperLayer)
         atten = f.softmax(atten)
         context = torch.mm(torch.t(encoderStates), atten)
         nnInput = torch.cat((hiddenUpperLayer, context))
 
-        prediction = f.softmax(self.out(f.tanh(self.neuNet(nnInput)))) #neural network layer
+        prediction = f.softmax(self.out(f.tanh(self.neuNet(torch.t(nnInput))))) #neural network layer
 
         return prediction, hidden, cell
 
 
-def wordToId(self, word):
-    return 0
-
-
-class seq2seq(object):
+class seq2seq(nn.Module):
     def __init__(self,eosToken,sosToken):
         super().__init__()
 
         self.encoder = encoder()
         self.decoder = decoderSimp()
-        self.sosToken=sosToken
-        self.eosToken=eosToken
+        self.sosToken=torch.tensor(sosToken, dtype=torch.long)
+        self.eosToken=torch.tensor(eosToken, dtype=torch.long)
         assert config.hiddenDimEnc == config.hiddenDimDec, "Hidden dimensions of encoder and decoder must be equal!"
         assert config.nLayersEnc == config.nLayersDec, "Encoder and decoder must have equal number of layers!"
 
-        def forward(self, src, trgLen):
+    def forward(self, src, trgLen):
 
             outputs = torch.zeros(trgLen)
 
-            encoderStates, hidden, cell = self.encoder.forward(src)
+            encoderStates, hidden, cell = self.encoder(src)
             encoderStates = encoderStates.squeeze(1)
 
-            input = self.sosToken
+            input = self.sosToken.unsqueeze(0)
             outputs[0] = input
 
-
-            trgLen = trgLen + np.floor(trgLen/2)
             t=1
 
             while input != self.eosToken and t < trgLen:
-                output, hidden, cell = self.decoder.forward(input, encoderStates, hidden, cell)
+                output, hidden, cell = self.decoder(input, encoderStates, hidden, cell)
                 outputs[t] = output.max(1)[1]
                 input = output.max(1)[1]
                 t = t+1
