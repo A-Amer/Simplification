@@ -51,7 +51,7 @@ def train(vocabFile=False):
                 output=model(input,len(target))
                 loss=lossFn(output,target.squeeze(1))
                 loss.backward()
-                clip_grad_norm_(model.paramters(),config.gradientMax)
+                clip_grad_norm_(model.parameters(),config.gradientMax)
                 optimizer.step()
         states={'epoch': epoch + 1, 'stateDict': model.state_dict(),
              'optimizer': optimizer.state_dict(),  }

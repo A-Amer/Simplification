@@ -85,19 +85,19 @@ class seq2seq(nn.Module):
 
     def forward(self, src, trgLen):
 
-            outputs = torch.zeros(trgLen)
+            outputs = torch.empty((trgLen,config.vocabSizeDec))
 
             encoderStates, hidden, cell = self.encoder(src)
             encoderStates = encoderStates.squeeze(1)
 
             input = self.sosToken.unsqueeze(0)
             outputs[0] = input
-
             t=1
 
             while input != self.eosToken and t < trgLen:
                 output, hidden, cell = self.decoder(input, encoderStates, hidden, cell)
-                outputs[t] = output.max(1)[1]
+                outputs[t] = output
+
                 input = output.max(1)[1]
                 t = t+1
 
