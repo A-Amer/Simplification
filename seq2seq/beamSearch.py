@@ -3,9 +3,8 @@ from torch import topk
 from torch import log
 
 class searchNode(object):
-    def __init__(self,parentSeq,score,prob):
+    def __init__(self,parentSeq,score):
         self.seq=parentSeq
-        self.p=prob
         self.score=score
 
 def scores(element):
@@ -19,7 +18,7 @@ def beamSearchDecoder(maxLen,intialInput,decoder, encoderStates, hidden, cell,eo
     output, hidden, cell = decoder(intialInput, encoderStates, hidden, cell)
     val, ind = topk(log(output), k=config.beamSize)
     for i in krange:
-        hypothesis.append(searchNode([ind[0][i].unsqueeze(0)],val.squeeze(0)[i].data,[output]))
+        hypothesis.append(searchNode([ind[0][i].unsqueeze(0)],val.squeeze(0)[i].data))
 
     while len(hypothesis)!=0 :
         for i in range(len(hypothesis)):
