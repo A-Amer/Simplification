@@ -1,9 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as f
-
 import config
-import numpy as np
+import beamSearch as bs
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -23,6 +22,11 @@ class encoder(nn.Module):
                            dropout=config.dropoutEnc)
 
         self.dropout = nn.Dropout(config.dropoutEnc)
+    def initializeWeights(self):
+        self.embedding.weight.data.uniform_(-config.initWeights,config.initWeights)
+        for param in self.rnn.parameters():
+         nn.init.uniform_(param.data, -config.initWeights, config.initWeights)
+
 
     def forward(self, input):
         #applying embedding to input sequence
@@ -53,6 +57,13 @@ class decoderSimp(nn.Module):
 
         self.neuNet = nn.Linear(config.hiddenDimDec * 2, config.hiddenDimDec, bias=False)
         self.out = nn.Linear(config.hiddenDimDec, config.vocabSizeDec, bias=False)
+    def initializeWeights(self):
+        self.embedding.weight.data.uniform_(-config.initWeights,config.initWeights)
+        self.neuNet.weight.data.uniform_(-config.initWeights,config.initWeights)
+        self.out.weight.data.uniform_(-config.initWeights,config.initWeights)
+        for param in self.rnn.parameters():
+         nn.init.uniform_(param.data, -config.initWeights, config.initWeights)
+
 
     def forward(self, input, encoderStates, hidden, cell):
 
@@ -77,11 +88,15 @@ class seq2seq(nn.Module):
         super().__init__()
 
         self.encoder = encoder()
+        self.encoder.initializeWeights()
         self.decoder = decoderSimp()
+        self.decoder.initializeWeights()
         self.sosToken=torch.tensor(sosToken, dtype=torch.long)
         self.eosToken=torch.tensor(eosToken, dtype=torch.long)
         assert config.hiddenDimEnc == config.hiddenDimDec, "Hidden dimensions of encoder and decoder must be equal!"
         assert config.nLayersEnc == config.nLayersDec, "Encoder and decoder must have equal number of layers!"
+
+
 
     def forward(self, src, trgLen):
 
@@ -91,15 +106,23 @@ class seq2seq(nn.Module):
             encoderStates = encoderStates.squeeze(1)
 
             input = self.sosToken.unsqueeze(0)
-            outputs[0] = input
             t=1
-
             while input != self.eosToken and t < trgLen:
                 output, hidden, cell = self.decoder(input, encoderStates, hidden, cell)
                 outputs[t] = output
-
                 input = output.max(1)[1]
-                t = t+1
+                t = t + 1
+            return  outputs
 
-            return outputs
+    def run(self,src,trgLen=20):
+        encoderStates, hidden, cell = self.encoder(src)
+        encoderStates = encoderStates.squeeze(1)
+
+        input = self.sosToken.unsqueeze(0)
+        return bs.beamSearchDecoder(trgLen,input,self.decoder,encoderStates,hidden,cell,self.eosToken)
+
+
+
+
+
 
