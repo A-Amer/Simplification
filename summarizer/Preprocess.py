@@ -1,7 +1,8 @@
 import io
 import re
-from nltk.stem.porter import *
-from nltk.tokenize import word_tokenize,sent_tokenize
+import numpy as np
+from nltk.stem.isri import ISRIStemmer
+from nltk.tokenize import wordpunct_tokenize
 from nltk.corpus import stopwords
 
 
@@ -11,12 +12,12 @@ def readFile(fileName):
     openedFile.close()
     return text
 def segment(text):
-    sentences= sent_tokenize(text)#re.split(r'[!;:\.\?]',str(text))
+    sentences=re.split(r'[!;:\.\?]',str(text))
     return sentences,len(text)
 
-def stemAndStopWords(text,n,st,stops):
+def stemAndStopWords(text,wordMap,st,stops,idf):
     sentenceWordMap={}
-    word_tokens = word_tokenize(text)
+    word_tokens = wordpunct_tokenize(text)
     filteredSentence = []
     for w in word_tokens:
         stem=st.stem(w)
@@ -26,41 +27,47 @@ def stemAndStopWords(text,n,st,stops):
                 sentenceWordMap[stem]+=1
             else:
                 sentenceWordMap[stem] = 1
-                if stem in n:
-                    n[stem] += 1
+                if stem in idf:
+                    idf[stem] += 1
                 else:
-                    n[stem] = 1
+                    idf[stem] = 1
 
+            if stem in wordMap:
+                     wordMap[stem]+=1
+            else:
+                     wordMap[stem] = 1
     return filteredSentence,sentenceWordMap
 
 
 
 def tokenize(txtList):
-    stops = set(stopwords.words('english'))
-    st = PorterStemmer()
-    n={}
+    maxSentenceLen=0
+    stops = set(stopwords.words('arabic'))
+    st = ISRIStemmer()
+    wordMap={}
+    idf={}
     sentencesMaps=[]
     tokenizedSentences=[]
-    avgDL=0
     i=0
     while i< len(txtList):
-        sentence=str(txtList[i]).replace('.',' ').replace('!',' ').replace('?',' ').replace('\n',' ').replace('؟',' ').replace('،',' ').replace('"',' ')
+        sentence=str(txtList[i]).replace('.',' ').replace('!',' ').replace('?',' ') \
+            .replace('\n',' ').replace('؟',' ').replace('،',' ').replace('"',' ')
         sentence=' '.join(sentence.split())
-        filteredSentence, sentenceWordMap=stemAndStopWords(sentence, n, st, stops)
-        if len(filteredSentence)<=1:
+        filteredSentence, sentenceWordMap=stemAndStopWords(sentence, wordMap, st, stops,idf)
+        if len(filteredSentence)>maxSentenceLen:
+            maxSentenceLen=len(filteredSentence)
+        elif len(filteredSentence)<=1:
             txtList.pop(i)
             continue
-        avgDL+=len(filteredSentence)
         tokenizedSentences.append(filteredSentence)
         sentencesMaps.append(sentenceWordMap)
         i+=1
-    avgDL=avgDL/len(tokenizedSentences)
-    return sentencesMaps,avgDL,n,tokenizedSentences
+    return sentencesMaps,maxSentenceLen,wordMap,tokenizedSentences,idf
 
 def textPreprocessing(file):
     sentences,textLen=segment(readFile(file))
-    sentencesMaps, avgDL, n, tokenizedSentences=tokenize(sentences)
-    return sentences,textLen,sentencesMaps, avgDL, n, tokenizedSentences
+    sentencesMaps, maxSentenceLen, wordMap, tokenizedSentences, idf=tokenize(sentences)
+    return sentences,textLen,sentencesMaps, maxSentenceLen, wordMap, tokenizedSentences, idf
 
 #textPreprocessing("Untitled Document.txt")
 

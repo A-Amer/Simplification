@@ -10,12 +10,10 @@ class Particle(object):
         self._cost = -1  # cost individual
         self._r1=random.uniform(0,1)
         self._r2 = random.uniform(0, 1)
-        self._c1=1.8#personal accelration
-        self._c2=2#social accelration
-        self._inertiaCoeff=0.9
+        self._c1=0.3#personal accelration
+        self._c2=0.5#social accelration
         for i in range(len(intialPos)):
             self._velocity.append(random.uniform(-1, 1))
-        self._velocity=np.array(self._velocity)
 
     def costFunc(self,similarityMatrix,infScores):
         summarySentenceIndex=self._position[self._position==1]
@@ -35,12 +33,12 @@ class Particle(object):
 
     def updatePosition(self):
         self._position=self._position+self._velocity
-        self._position[self._position< 1]=0
-        self._position[self._position >= 1]=1
+        self._position[self._position<=0.7]=0
+        self._position[self._position > 1]=1
 
 
     def updateVelocity(self,globalBest):
-        self._velocity=self._velocity*self._inertiaCoeff+(self._c1*self._r1)*(self._posBest-self._position)+(self._c2*self._r2)*(globalBest-self._position)
+        self._velocity=self._velocity+(self._c1*self._r1)*(self._posBest-self._position)+(self._c2*self._r2)*(globalBest-self._position)
 
 
 
