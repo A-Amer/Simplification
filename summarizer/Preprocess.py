@@ -31,11 +31,6 @@ def stemAndStopWords(text,n,st,stops):
                 else:
                     n[stem] = 1
 
-
-
-
-
-
     return filteredSentence,sentenceWordMap
 
 
