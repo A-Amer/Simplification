@@ -63,7 +63,7 @@ def buildVocab(path,vocabFilePath):#path:regex of the path+format of files to ex
 
 def preprocessOriginalData():
     chunk(config.fullOrgTxtPath, config.fullSimpleTxtPath, config.orgTrainingFilePath, config.simpleTrainingFilePath)
-    buildVocab(config.orgTrainingFilePath, config.orgVocabFilePath)
-    buildVocab(config.simpleTrainingFilePath, config.simpleVocabFilePath)
+    buildVocab(config.orgTrainingFilePath+'/*.txt', config.orgVocabFilePath)
+    buildVocab(config.simpleTrainingFilePath+'/*.txt', config.simpleVocabFilePath)
 
 preprocessOriginalData()
