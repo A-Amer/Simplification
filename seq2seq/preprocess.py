@@ -1,6 +1,7 @@
 import re
 import glob
 from nltk import word_tokenize
+import config
 
 def chunk(fromPathOrg,fromPathSimple,ToPathOrg,ToPathSimple):
     i=0
@@ -10,6 +11,7 @@ def chunk(fromPathOrg,fromPathSimple,ToPathOrg,ToPathSimple):
     dstFileSimple = open(ToPathSimple + '/train_' +str(i)+ '.dst.txt', mode='w')
     i+=1
     legalChars=r'[ ^\x00 -\x7Fé]+$'
+    examplesPerFile = config.batchSize*config.batchPerFile
     numOfExamples=0
     while True:
         lineOrg = srcFileOrg.readline().replace('-LCB-','{').replace('-RCB-','}').replace('-LRB-','(').replace('-RRB-',')').replace('-LSB-','[').replace('-RSB-',']').replace("â ''",'-')
@@ -20,10 +22,10 @@ def chunk(fromPathOrg,fromPathSimple,ToPathOrg,ToPathSimple):
                 or lineOrg[0].isnumeric() or lineSimple[0].isnumeric() or\
                 not(( not lineSimple.endswith((".\n",";\n","!\n","?\n"))) or (lineOrg.endswith((".\n",";\n","!\n","?\n")))):
             continue
-        dstFileOrg.write(lineOrg)
-        dstFileSimple.write(lineSimple)
+        dstFileOrg.write(lineOrg.lower())
+        dstFileSimple.write(lineSimple.lower())
         numOfExamples+=1
-        if numOfExamples==1000:
+        if numOfExamples==examplesPerFile:
             dstFileOrg.close()
             dstFileSimple.close()
             dstFileOrg = open(ToPathOrg+'/train_'+str(i)+'.src.txt',mode='w')
@@ -57,3 +59,11 @@ def buildVocab(path,vocabFilePath):#path:regex of the path+format of files to ex
             break
 
     vocabFile.close()
+
+
+def preprocessOriginalData():
+    chunk(config.fullOrgTxtPath, config.fullSimpleTxtPath, config.orgTrainingFilePath, config.simpleTrainingFilePath)
+    buildVocab(config.orgTrainingFilePath, config.orgVocabFilePath)
+    buildVocab(config.simpleTrainingFilePath, config.simpleVocabFilePath)
+
+preprocessOriginalData()

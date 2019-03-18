@@ -17,17 +17,23 @@ beamSize=3
 
 #training parameters
 vocabSize=50000
-maxEpoch=100
+maxEpoch=1
 gradientMax=5
 learningRate=0.001
 beta1=0.9
 beta2=0.999
 initWeights=0.1
+batchSize=64
+batchPerFile=16
 
-fullOrgTxtPath='/home/amira/GP-imp/Abstractive Sum/data-simplification/wikilarge/wiki.full.aner.ori.train.src'
-fullSimpleTxtPath='/home/amira/GP-imp/Abstractive Sum/data-simplification/wikilarge/wiki.full.aner.ori.train.dst'
-orgTrainingFilePath= './data/train/Org/*.txt'
-simpleTrainingFilePath= './data/train/Simple/*.txt'
+#relevance model parameters
+nLayersRelEnc=1
+nLayersRelDec=1
+
+fullOrgTxtPath='./data/wiki.full.aner.train.src'
+fullSimpleTxtPath='./data/wiki.full.aner.train.dst'
+orgTrainingFilePath= './data/train/Org'
+simpleTrainingFilePath= './data/train/Simple'
 orgVocabFilePath='data/orgVocab.txt'
 simpleVocabFilePath='data/simpleVocab.txt'
 checkpointPath='check.tar'
