@@ -1,22 +1,22 @@
 import Preprocess
 import numpy as np
 import rouge
+import gensim.summarization as textRank
 
 def updateIdf(n,noOfSentences,eps=0.25):
     avgIdf=0
     idf = {}
     for key in list(n.keys()):
-        idf[key]=np.log(int(noOfSentences)/n[key])
+        idf[key]=idf[key]=np.log((noOfSentences-n[key]+0.5))-np.log(n[key]+0.5)
         avgIdf+=idf[key]
     idfKeys=list(idf.keys())
     avgIdf=avgIdf/len(idfKeys)
     for key in idfKeys:
-        if (noOfSentences-n[key]+0.5)<=0:
+        if idf[key]<=0:
+            idf[key] = eps * avgIdf
             continue
-        if n[key]>noOfSentences/3:
-            idf[key]=np.log((noOfSentences-n[key]+0.5)/(n[key]+0.5))
-        else:
-            idf[key]=eps*avgIdf
+
+
     return idf
 
 def getScore(index1,index2,idf,avgDL,sentencesMaps,tokenizedSentences,k=1.2,b=0.75):
@@ -37,31 +37,32 @@ def createGraph(n,noOfSentences,avgDL,sentencesMaps,tokenizedSentences):
     for i in range(noOfSentences-1):
         for j in range(i+1,noOfSentences):
             dag[i][j] =getScore(i,j,idf,avgDL,sentencesMaps,tokenizedSentences)
+            dag[j][i]=dag[i][j]
     return dag,idf
 
-def pagerank_weighted(graph,noOfSentences, initial_value=None, damping=0.85):
+def pagerankWeighted(graph, noOfSentences, initialValue=None, damping=0.85):
     """Calculates PageRank for an undirected graph"""
     convergenceThreshold = 0.0001
-    if initial_value == None: initial_value = 1.0 / noOfSentences
-    scores = dict.fromkeys(range(noOfSentences), initial_value)
+    if initialValue == None: initialValue = 1.0 / noOfSentences
+    scores = dict.fromkeys(range(noOfSentences), initialValue)
 
-    iteration_quantity = 0
-    for iteration_number in range(100):
-        iteration_quantity += 1
-        convergence_achieved = 0
+    iterationQuantity = 0
+    for iterationNumber in range(100):
+        iterationQuantity += 1
+        convergenceAchieved = 0
         for i in range(noOfSentences):
             rank = 1 - damping
             for j in range(i + 1, noOfSentences):
-                neighbors_sum=sum(graph[j])
-                if neighbors_sum==0:
+                neighborsSum=sum(graph[j])
+                if neighborsSum==0:
                     continue
-                rank += damping * scores[j] * graph[i][j] / neighbors_sum
+                rank += damping * scores[j] * graph[i][j] / neighborsSum
             if abs(scores[i] - rank) <= convergenceThreshold:
-                convergence_achieved += 1
+                convergenceAchieved += 1
 
             scores[i] = rank
 
-        if convergence_achieved == noOfSentences:
+        if convergenceAchieved == noOfSentences:
             break
 
     return scores
@@ -70,7 +71,7 @@ def pagerank_weighted(graph,noOfSentences, initial_value=None, damping=0.85):
 def intialize(ratio,txtPath):
     sentences, textLen, sentencesMaps, avgDL, n, tokenizedSentences= Preprocess.textPreprocessing(txtPath)
     dag,idf=createGraph(n,len(sentences),avgDL,sentencesMaps,tokenizedSentences)
-    scores=pagerank_weighted(dag,len(sentences))
+    scores=pagerankWeighted(dag, len(sentences))
     ratio=ratio*len(sentences)
     sumSentences=[]
     i=0
@@ -86,11 +87,13 @@ def intialize(ratio,txtPath):
 
     return dag,sentences,textLen,extractiveSum
 
-orgPath="News Articles/business/002.txt"
-summaryPath="Summaries/business/002.txt"
+orgPath="News Articles/business/004.txt"
+summaryPath="Summaries/business/004.txt"
 simMatrix,sentences,textLen,exSum=intialize(0.4,orgPath)
-
+#print(exSum)
 ref=open(summaryPath).read()
 r=rouge.Rouge()
 print(r.get_scores(exSum,ref))
-
+exSum=textRank.summarize(open(orgPath).read(),0.4)
+#print(exSum)
+print(r.get_scores(exSum,ref))
