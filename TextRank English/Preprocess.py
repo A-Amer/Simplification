@@ -1,5 +1,6 @@
 import io
 import re
+import string
 from nltk.stem.porter import *
 from nltk.tokenize import word_tokenize,sent_tokenize
 from nltk.corpus import stopwords
@@ -26,17 +27,18 @@ def stemAndStopWords(text,n,st,stops):
                 sentenceWordMap[stem]+=1
             else:
                 sentenceWordMap[stem] = 1
-
-            if stem in n:
-                n[stem] += 1
-            else:
-                n[stem] = 1
-
-
+                if stem in n:
+                    n[stem] += 1
+                else:
+                    n[stem] = 1
 
     return filteredSentence,sentenceWordMap
 
 
+reWhitespace = re.compile(r"(\s)+")
+reNumeric = re.compile(r"[0-9]+")
+reTags = re.compile(r"<([^>]+)>")
+rePunct = re.compile('([%s])+' % re.escape(string.punctuation))
 
 def tokenize(txtList):
     stops = set(stopwords.words('english'))
@@ -47,8 +49,12 @@ def tokenize(txtList):
     avgDL=0
     i=0
     while i< len(txtList):
-        sentence=str(txtList[i]).replace('.',' ').replace('!',' ').replace('?',' ').replace('\n',' ').replace('؟',' ').replace('،',' ').replace('"',' ')
-        sentence=' '.join(sentence.split())
+        sentence=str(txtList[i])
+        sentence =reNumeric.sub(" ",sentence)
+        sentence = reTags.sub(" ", sentence)
+        sentence = rePunct.sub(" ", sentence)
+        sentence = reWhitespace .sub(" ", sentence)
+        #sentence=' '.join(sentence.split())
         filteredSentence, sentenceWordMap=stemAndStopWords(sentence, n, st, stops)
         if len(filteredSentence)<=1:
             txtList.pop(i)

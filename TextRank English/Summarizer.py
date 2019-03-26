@@ -1,19 +1,24 @@
-import  Preprocess
-import PSO
+import Preprocess
 import numpy as np
+import rouge
+import gensim.summarization as textRank
+import Test as t
+import os
+
 def updateIdf(n,noOfSentences,eps=0.25):
     avgIdf=0
     idf = {}
     for key in list(n.keys()):
-        idf[key]=np.log(int(noOfSentences)/n[key])
+        idf[key]=idf[key]=np.log((noOfSentences-n[key]+0.5))-np.log(n[key]+0.5)
         avgIdf+=idf[key]
     idfKeys=list(idf.keys())
     avgIdf=avgIdf/len(idfKeys)
     for key in idfKeys:
-        if n[key]>noOfSentences/3:
-            idf[key]=np.log((noOfSentences-n[key]+0.5)/(n[key]+0.5))
-        else:
-            idf[key]=eps*avgIdf
+        if idf[key]<=0:
+            idf[key] = eps * avgIdf
+            continue
+
+
     return idf
 
 def getScore(index1,index2,idf,avgDL,sentencesMaps,tokenizedSentences,k=1.2,b=0.75):
@@ -27,65 +32,48 @@ def getScore(index1,index2,idf,avgDL,sentencesMaps,tokenizedSentences,k=1.2,b=0.
         den+=sentencesMaps[index2][word]
         score+=(idf[word]*sentencesMaps[index2][word]*(k+1))/den
     return score
+
 def createGraph(n,noOfSentences,avgDL,sentencesMaps,tokenizedSentences):
     idf=updateIdf(n,noOfSentences)
     dag = np.zeros((noOfSentences, noOfSentences))
     for i in range(noOfSentences-1):
         for j in range(i+1,noOfSentences):
             dag[i][j] =getScore(i,j,idf,avgDL,sentencesMaps,tokenizedSentences)
+            dag[j][i]=dag[i][j]
     return dag,idf
 
-def pagerank_weighted(graph,noOfSentences, initial_value=None, damping=0.85):
+def pagerankWeighted(graph, noOfSentences, initialValue=None, damping=0.85):
     """Calculates PageRank for an undirected graph"""
-    CONVERGENCE_THRESHOLD = 0.0001
-    if initial_value == None: initial_value = 1.0 / noOfSentences
-    scores = dict.fromkeys(range(noOfSentences), initial_value)
+    convergenceThreshold = 0.0001
+    if initialValue == None: initialValue = 1.0 / noOfSentences
+    scores = dict.fromkeys(range(noOfSentences), initialValue)
 
-    iteration_quantity = 0
-    for iteration_number in range(100):
-        iteration_quantity += 1
-        convergence_achieved = 0
+    iterationQuantity = 0
+    for iterationNumber in range(100):
+        iterationQuantity += 1
+        convergenceAchieved = 0
         for i in range(noOfSentences):
             rank = 1 - damping
-            for j in range(i + 1, noOfSentences):
-                neighbors_sum=sum(graph[j])
-                if neighbors_sum==0:
+            for j in range(noOfSentences):
+                neighborsSum=sum(graph[j])
+                if neighborsSum==0:
                     continue
-                rank += damping * scores[j] * graph[i][j] / neighbors_sum
-            if abs(scores[i] - rank) <= CONVERGENCE_THRESHOLD:
-                convergence_achieved += 1
+                rank += damping * scores[j] * graph[i][j] / neighborsSum
+            if abs(scores[i] - rank) <= convergenceThreshold:
+                convergenceAchieved += 1
 
             scores[i] = rank
 
-        if convergence_achieved == noOfSentences:
+        if convergenceAchieved == noOfSentences:
             break
 
     return scores
 
-def informativeScoreCalc(idf,maxSentenceLen,noOfSentences,tokenizedSentences,sentenceMaps,n):
-    infScore=np.zeros(noOfSentences)
-    tf_idf=np.zeros((noOfSentences,len(list(idf.values()))))
 
-    for i in range (noOfSentences):
-        infScore[i]=(len(tokenizedSentences[i])/maxSentenceLen)+(1-(i+1)/noOfSentences)
-        tf=dict.fromkeys(idf,0)
-        for key in list(sentenceMaps[i].keys()):
-            tf[key]=sentenceMaps[i][key]/n[key]
-
-        tf_idf[i]=np.multiply((list(tf.values())),(list(idf.values())))
-        infScore[i]+=np.sum(tf_idf[i])
-        tf.clear()
-    sentenceMaps.clear()
-    idf.clear()
-    tokenizedSentences.clear()
-    n.clear()
-    return infScore
-
-
-def intialize(ratio):
-    sentences, textLen, sentencesMaps, avgDL, n, tokenizedSentences= Preprocess.textPreprocessing("001.txt")
+def summarize(ratio, txtPath):
+    sentences, textLen, sentencesMaps, avgDL, n, tokenizedSentences= Preprocess.textPreprocessing(txtPath)
     dag,idf=createGraph(n,len(sentences),avgDL,sentencesMaps,tokenizedSentences)
-    scores=pagerank_weighted(dag,len(sentences))
+    scores=pagerankWeighted(dag, len(sentences))
     ratio=ratio*len(sentences)
     sumSentences=[]
     i=0
@@ -95,16 +83,42 @@ def intialize(ratio):
         if i>ratio:
             break
     sumSentences.sort()
+    extractiveSum=""
     for i in sumSentences:
-        print(sentences[i])
-    print("\n\n PSO \n\n")
-    infScore=informativeScoreCalc(idf, avgDL, len(sentences), tokenizedSentences, sentencesMaps, n)
-    return infScore,dag,sentences,textLen
+        extractiveSum+=sentences[i]
 
-infScore,simMatrix,sentences,textLen=intialize(0.35)
-psoObject=PSO.PSO(sentences,simMatrix,infScore,0.4*textLen,20,5000,0)
-sol=psoObject.getBestSolution()
-indx=list(np.where(sol==1)[0])
-for i in indx:
-    print(sentences[i])
+    return dag,sentences,textLen,extractiveSum
 
+orgPath="News Articles/sport/"
+summaryPath="Summaries/entertainment/"
+systemPath="System Summaries/sport/"
+'''
+r=rouge.Rouge()
+rScore=0
+genRScore=0
+count=0
+for filename in os.listdir(orgPath):
+    org=os.path.join(orgPath, filename)
+    simMatrix, sentences, textLen, exSum = summarize(0.4, org)
+    open(os.path.join(systemPath,filename),mode='w').write(exSum)
+    #ref=open(os.path.join(summaryPath, filename)).read()
+    #rScore +=r.get_scores(exSum, ref)[0]['rouge-l']['f']
+    #exSum = textRank.summarize(open(org).read(), 0.4)
+    #genRScore +=r.get_scores(exSum, ref)[0]['rouge-l']['f']
+    count+=1
+    if count>10:
+        break
+
+print(rScore/count)
+print(genRScore/count)
+'''
+
+simMatrix,sentences,textLen,exSum=summarize(0.4, orgPath)
+print(exSum)
+ref=open(summaryPath).read()
+r=rouge.Rouge()
+print(r.get_scores(exSum,ref))
+
+exSum=textRank.summarize(open(orgPath).read(),0.4)
+#print(exSum)
+print(r.get_scores(exSum,ref))
